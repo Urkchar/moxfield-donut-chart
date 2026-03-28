@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      100
+// @version      103
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -12,6 +12,8 @@
 (function () {
     'use strict';
 
+    let __lastRouteRan__ = null;
+
     // --- 0) Utility: deckId from URL ---
     function getDeckIdFromPath(pathname = location.pathname) {
         const m = pathname.match(/^\/decks\/([^\/?#]+)/);
@@ -20,13 +22,18 @@
 
     // --- 1) Single, canonical route entry ---
     function onRouteChange() {
-        // Reduce unnecessary execution on unrelated pages; bail early
-        if (!location.pathname.startsWith('/decks/')) return;
         const deckId = getDeckIdFromPath();
-        if (!deckId) return;                               // not on a /decks/... route
-        if (window.__lastDeckRan__ === deckId) return;     // de-dupe
-        window.__lastDeckRan__ = deckId;
-        safeMain(deckId);                                   // pass a string only
+        if (!deckId) {
+            __lastRouteRan__ = null;   // reset when leaving deck routes
+            return;
+        }
+
+        const routeKey = location.pathname;
+
+        if (__lastRouteRan__ === routeKey) return;
+        __lastRouteRan__ = routeKey;
+
+        safeMain(deckId);
     }
 
     // --- 2) Never bind `main` directly; use this wrapper ---
