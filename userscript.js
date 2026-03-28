@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      99
+// @version      100
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
-// @match        https://moxfield.com/decks/*
+// @match        https://moxfield.com/*
 // @grant        none
 // @run-at       document-start
 // @noframes
@@ -20,6 +20,8 @@
 
     // --- 1) Single, canonical route entry ---
     function onRouteChange() {
+        // Reduce unnecessary execution on unrelated pages; bail early
+        if (!location.pathname.startsWith('/decks/')) return;
         const deckId = getDeckIdFromPath();
         if (!deckId) return;                               // not on a /decks/... route
         if (window.__lastDeckRan__ === deckId) return;     // de-dupe
