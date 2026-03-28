@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      103
+// @version      104
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -195,6 +195,7 @@
      ************************************************************/
 
     async function main(deckId, { signal } = {}) {
+        if (deckId == "personal") return;
         console.log("Userscript: starting for deck", deckId);
 
         // Direct fetch with AbortController support
