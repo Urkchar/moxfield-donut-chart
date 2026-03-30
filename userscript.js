@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      126
+// @version      143
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -12,6 +12,14 @@
 
 (function () {
     'use strict';
+
+    // Create the regex for counting mana symbols in card text
+    var whitePattern = /\b[Aa]dd\b[^.]*?\{W\}/g
+    var bluePattern = /\b[Aa]dd\b[^.]*?\{U\}/g
+    var blackPattern = /\b[Aa]dd\b[^.]*?\{B\}/g
+    var redPattern = /\b[Aa]dd\b[^.]*?\{R\}/g
+    var greenPattern = /\b[Aa]dd\b[^.]*?\{G\}/g
+    var colorlessPattern = /\b[Aa]dd\b[^.]*?\{C\}/g
 
     let __lastRouteRan__ = null;
 
@@ -218,14 +226,6 @@
             container.querySelector('.chart-container').remove();
         }
 
-        // Create the regex for counting mana symbols in card text
-        const whitePattern = /\b[Aa]dd\b[^.]*?\{W\}/g
-        const bluePattern = /\b[Aa]dd\b[^.]*?\{U\}/g
-        const blackPattern = /\b[Aa]dd\b[^.]*?\{B\}/g
-        const redPattern = /\b[Aa]dd\b[^.]*?\{R\}/g
-        const greenPattern = /\b[Aa]dd\b[^.]*?\{G\}/g
-        const colorlessPattern = /\b[Aa]dd\b[^.]*?\{C\}/g
-
         // Count the symbols for each color
         const whiteSymbols = countColors(cards, "{W}", whitePattern)
         const blueSymbols = countColors(cards, "{U}", bluePattern)
@@ -234,20 +234,65 @@
         const greenSymbols = countColors(cards, "{G}", greenPattern)
         const colorlessSymbols = countColors(cards, "{C}", colorlessPattern)
 
-        // Example: Insert a custom UI element
-        const box = document.createElement("div");
-        box.className = "chart-container";
-        box.innerHTML = `
-            <h2 class="chart-title">Card costs (outer)<br>Land mana (inner)</h2>
-            <canvas id="myChart" width="200" height="200"></canvas>
-            <div class=btn-wrap>
-                <button class="btn btn-primary btn-refresh" type="button" aria-label="Refresh">
-                    <span>Refresh</span>
-                </button>
-            </div>
-        `;
+        // Create elements
+        const row = document.createElement("div")
+        const chartContainer = document.createElement("div")
+        const chartTitle = document.createElement("h2")
+        const chartTitleText1 = document.createElement("span")
+        const lineBreak = document.createElement("br")
+        const chartTitleText2 = document.createElement("span")
+        const canvas = document.createElement("canvas")
+        const btnWrapper = document.createElement("div")
+        const refreshBtn = document.createElement("button")
+        const refreshBtnText = document.createElement("span")
 
-        const refreshBtn = box.querySelector(".btn-refresh");
+        // Add text
+        chartTitleText1.textContent = "Card costs (outer)"
+        chartTitleText2.textContent = "Land mana (inner"
+        refreshBtnText.textContent = "Refresh"
+
+        // Add classes and attributes
+        chartContainer.classList.add("chart-container")
+        chartTitle.classList.add("chart-title")
+        btnWrapper.classList.add("btn-wrap")
+        refreshBtn.classList.add("btn")
+        refreshBtn.classList.add("btn-primary")
+        refreshBtn.classList.add("btn-refresh")
+        refreshBtn.type = "button"
+        refreshBtn.ariaLabel = "Refresh"
+        canvas.id = "myChart"
+        canvas.width = 200
+        canvas.height = 200
+
+        // Nest elements
+        row.appendChild(chartContainer)
+        chartContainer.appendChild(chartTitle)
+        chartTitle.appendChild(chartTitleText1)
+        chartTitle.appendChild(lineBreak)
+        chartTitle.appendChild(chartTitleText2)
+        chartContainer.appendChild(canvas)
+        chartContainer.appendChild(btnWrapper)
+        btnWrapper.appendChild(refreshBtn)
+        refreshBtn.appendChild(refreshBtnText)
+
+        // const box = document.createElement("div");
+        // box.className = "chart-container";
+        // // <h2 class="chart-title">Card costs (outer)<br>Land mana (inner)</h2>
+        // box.innerHTML = `
+        //     <h2 class="chart-title">
+        //         <span>Card costs (outer)</span>
+        //         <br>
+        //         <span>Land mana (inner)</span>
+        //     </h2>
+        //     <canvas id="myChart" width="200" height="200"></canvas>
+        //     <div class=btn-wrap>
+        //         <button class="btn btn-primary btn-refresh" type="button" aria-label="Refresh">
+        //             <span>Refresh</span>
+        //         </button>
+        //     </div>
+        // `;
+
+        // const refreshBtn = box.querySelector(".btn-refresh");
         refreshBtn.addEventListener("click", () => {
             console.log("[Mana Donut Chart] Manual refresh");
             safeMain(deckId);
@@ -255,17 +300,31 @@
 
         // Avoid duplicate insertion
         if (!container.querySelector('.chart-container')) {
+            console.debug("[Mana Donut Chart] Inserting HTML...")
 
-            // Locate only <hr> elements that are DIRECT children of the container
-            const directHrs = Array.from(container.children).filter(
-                el => el.tagName === "HR"
-            );
+            // // Locate only <hr> elements that are DIRECT children of the container
+            // const directHrs = Array.from(container.children).filter(
+            //     el => el.tagName === "HR"
+            // );
 
-            if (directHrs.length >= 2) {
-                container.insertBefore(box, directHrs[1]);
-            } else {
-                container.appendChild(box);
-            }
+            // const rows = Array.from(container.children).filter(
+            //     el => el.className === "row"
+            // );
+            const rows = container.querySelectorAll(".row")
+            console.debug(`[Mana Donut Chart] Found ${rows.length} rows.`);
+            rows[1]?.before(row);
+
+            // if (directHrs.length >= 2) {
+            //     container.insertBefore(row, directHrs[0]);
+            //     // container.insertAfter(box, directHrs[0]);
+            // } else {
+            //     container.appendChild(row);
+            // }
+
+            console.debug("[Mana Donut Chart] HTML interted.")
+        }
+        else {
+            console.debug("[Mana Donut Chart] HTML already inserted.")
         }
 
         // Add CSS
@@ -296,7 +355,7 @@
         // Load Chart.js
         await loadScript("https://cdn.jsdelivr.net/npm/chart.js");
 
-        // Example: Draw a nested pie chart
+        // Draw the nested pie chart
         const WHITE = "#f0f2c0"
         const BLUE = "#b5cde3"
         const BLACK = "#aca29a"
