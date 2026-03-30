@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      148
+// @version      149
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -36,12 +36,20 @@ console.debug = (...args) => {
     'use strict';
 
     // Create the regex for counting mana symbols in card text
-    var whitePattern = /\b[Aa]dd\b[^.]*?\{W\}/g
-    var bluePattern = /\b[Aa]dd\b[^.]*?\{U\}/g
-    var blackPattern = /\b[Aa]dd\b[^.]*?\{B\}/g
-    var redPattern = /\b[Aa]dd\b[^.]*?\{R\}/g
-    var greenPattern = /\b[Aa]dd\b[^.]*?\{G\}/g
-    var colorlessPattern = /\b[Aa]dd\b[^.]*?\{C\}/g
+    const whitePattern = /\b[Aa]dd\b[^.]*?\{W\}/g;
+    const bluePattern = /\b[Aa]dd\b[^.]*?\{U\}/g;
+    const blackPattern = /\b[Aa]dd\b[^.]*?\{B\}/g;
+    const redPattern = /\b[Aa]dd\b[^.]*?\{R\}/g;
+    const greenPattern = /\b[Aa]dd\b[^.]*?\{G\}/g;
+    const colorlessPattern = /\b[Aa]dd\b[^.]*?\{C\}/g;
+
+    // Create shorthand for colors
+    const WHITE = "#f0f2c0";
+    const BLUE = "#b5cde3";
+    const BLACK = "#aca29a";
+    const RED = "#db8664";
+    const GREEN = "#93b483";
+    const COLORLESS = "#beb9b2";
 
     let __lastRouteRan__ = null;
 
@@ -328,10 +336,6 @@ console.debug = (...args) => {
             .chart-title {
                 text-align: center;
             }
-            #chart-timestamp {
-                color: rgb(102, 102, 102);
-                text-align: center;
-            }
             /* Wrapper to center the button horizontally */
             .btn-wrap {
                 display: flex;
@@ -345,13 +349,6 @@ console.debug = (...args) => {
         await loadScript("https://cdn.jsdelivr.net/npm/chart.js");
 
         // Draw the nested pie chart
-        const WHITE = "#f0f2c0"
-        const BLUE = "#b5cde3"
-        const BLACK = "#aca29a"
-        const RED = "#db8664"
-        const GREEN = "#93b483"
-        const COLORLESS = "#beb9b2"
-
         const ctx = document.getElementById("myChart").getContext("2d");
 
         const outerData = [
