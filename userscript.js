@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      104
+// @version      125
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
 // @run-at       document-start
 // @noframes
 // ==/UserScript==
+
 
 (function () {
     'use strict';
@@ -50,7 +51,7 @@
         try {
             await main(deckId, { signal: __currentController.signal });
         } catch (e) {
-            if (e?.name !== 'AbortError') console.warn('main failed:', e);
+            if (e?.name !== 'AbortError') console.warn('[Mana Donut Chart] main failed:', e);
         }
     }
 
@@ -146,12 +147,6 @@
             var landMana = 0
         }
 
-        // if ((colorCharacter == "{C}") && ((landMana > 0) || (cardCost > 0))) {
-        //     console.log(face["name"])
-        //     console.log(cardCost)
-        //     console.log(landMana)
-        // }
-
         return [cardCost, landMana]
     }
 
@@ -167,11 +162,7 @@
         let landMana = 0
 
         for (const [_, rawCard] of Object.entries(cards)) {
-            // console.log(rawCard)
             const card = rawCard["card"]
-            // if (card["name"] == "Ishai, Ojutai Dragonspeaker") {
-            //     console.log("Ishai logged")
-            // }
 
             if (card["card_faces"].length > 0) {
                 for (const [_, face] of Object.entries(card["card_faces"])) {
@@ -196,7 +187,7 @@
 
     async function main(deckId, { signal } = {}) {
         if (deckId == "personal") return;
-        console.log("Userscript: starting for deck", deckId);
+        console.log("[Mana Donut Chart] Starting for deck", deckId);
 
         // Direct fetch with AbortController support
         const urls = [
@@ -243,13 +234,27 @@
         const greenSymbols = countColors(cards, "{G}", greenPattern)
         const colorlessSymbols = countColors(cards, "{C}", colorlessPattern)
 
+        const now = new Date();
+
         // Example: Insert a custom UI element
         const box = document.createElement("div");
         box.className = "chart-container";
         box.innerHTML = `
             <h2 class="chart-title">Card costs (outer)<br>Land mana (inner)</h2>
             <canvas id="myChart" width="200" height="200"></canvas>
+            <div class=btn-wrap>
+                <button class="btn btn-primary btn-refresh" type="button" aria-label="Refresh">
+                    <span>Refresh</span>
+                </button>
+            </div>
         `;
+
+        const refreshBtn = box.querySelector(".btn-refresh");
+        refreshBtn.addEventListener("click", () => {
+            console.log("[Mana Donut Chart] Manual refresh");
+            safeMain(deckId);
+        })
+
         // Avoid duplicate insertion
         if (!container.querySelector('.chart-container')) {
 
@@ -265,7 +270,7 @@
             }
         }
 
-        // Example: Add CSS
+        // Add CSS
         addGlobalStyle(`
             .chart-container {
                 padding: 12px;
@@ -277,9 +282,20 @@
             .chart-title {
                 text-align: center;
             }
+            #chart-timestamp {
+                color: rgb(102, 102, 102);
+                text-align: center;
+            }
+            /* Wrapper to center the button horizontally */
+            .btn-wrap {
+                display: flex;
+                justify-content: center;
+                /* Optional spacing around the button */
+                margin: 1rem 0;
+            }
         `);
 
-        // Example: Load Chart.js
+        // Load Chart.js
         await loadScript("https://cdn.jsdelivr.net/npm/chart.js");
 
         // Example: Draw a nested pie chart
