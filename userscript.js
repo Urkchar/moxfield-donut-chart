@@ -10,30 +10,30 @@
 // ==/UserScript==
 
 
-const originalError = console.error;
-console.error = (...args) => {
-    originalError("[Mana Donut Chart] [ERROR]", ...args);
-};
-const originalWarn = console.warn;
-console.warn = (...args) => {
-    originalWarn("[Mana Donut Chart] [WARN]", ...args);
-};
-const originalLog = console.log;
-console.log = (...args) => {
-    originalLog("[Mana Donut Chart] [INFO]", ...args);
-};
-const originalInfo = console.info;
-console.info = (...args) => {
-    originalInfo("[Mana Donut Chart] [INFO]", ...args);
-};
-const originalDebug = console.debug;
-console.debug = (...args) => {
-    originalDebug("[Mana Donut Chart] [DEBUG]", ...args);
-};
-
-
 (function () {
     'use strict';
+
+    // Extend logging
+    const originalError = console.error;
+    console.error = (...args) => {
+        originalError("[Mana Donut Chart] [ERROR]", ...args);
+    };
+    const originalWarn = console.warn;
+    console.warn = (...args) => {
+        originalWarn("[Mana Donut Chart] [WARN]", ...args);
+    };
+    const originalLog = console.log;
+    console.log = (...args) => {
+        originalLog("[Mana Donut Chart] [INFO]", ...args);
+    };
+    const originalInfo = console.info;
+    console.info = (...args) => {
+        originalInfo("[Mana Donut Chart] [INFO]", ...args);
+    };
+    const originalDebug = console.debug;
+    console.debug = (...args) => {
+        originalDebug("[Mana Donut Chart] [DEBUG]", ...args);
+    };
 
     // Create the regex for counting mana symbols in card text
     const whitePattern = /\b[Aa]dd\b[^.]*?\{W\}/g;
