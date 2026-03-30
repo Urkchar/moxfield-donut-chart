@@ -1,13 +1,35 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      143
+// @version      148
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
 // @run-at       document-start
 // @noframes
 // ==/UserScript==
+
+
+const originalError = console.error;
+console.error = (...args) => {
+    originalError("[Mana Donut Chart] [ERROR]", ...args);
+};
+const originalWarn = console.warn;
+console.warn = (...args) => {
+    originalWarn("[Mana Donut Chart] [WARN]", ...args);
+};
+const originalLog = console.log;
+console.log = (...args) => {
+    originalLog("[Mana Donut Chart] [INFO]", ...args);
+};
+const originalInfo = console.info;
+console.info = (...args) => {
+    originalInfo("[Mana Donut Chart] [INFO]", ...args);
+};
+const originalDebug = console.debug;
+console.debug = (...args) => {
+    originalDebug("[Mana Donut Chart] [DEBUG]", ...args);
+};
 
 
 (function () {
@@ -59,7 +81,7 @@
         try {
             await main(deckId, { signal: __currentController.signal });
         } catch (e) {
-            if (e?.name !== 'AbortError') console.warn('[Mana Donut Chart] main failed:', e);
+            if (e?.name !== 'AbortError') console.warn('main failed:', e);
         }
     }
 
@@ -195,7 +217,7 @@
 
     async function main(deckId, { signal } = {}) {
         if (deckId == "personal") return;
-        console.log("[Mana Donut Chart] Starting for deck", deckId);
+        console.log("Starting for deck", deckId);
 
         // Direct fetch with AbortController support
         const urls = [
@@ -275,56 +297,23 @@
         btnWrapper.appendChild(refreshBtn)
         refreshBtn.appendChild(refreshBtnText)
 
-        // const box = document.createElement("div");
-        // box.className = "chart-container";
-        // // <h2 class="chart-title">Card costs (outer)<br>Land mana (inner)</h2>
-        // box.innerHTML = `
-        //     <h2 class="chart-title">
-        //         <span>Card costs (outer)</span>
-        //         <br>
-        //         <span>Land mana (inner)</span>
-        //     </h2>
-        //     <canvas id="myChart" width="200" height="200"></canvas>
-        //     <div class=btn-wrap>
-        //         <button class="btn btn-primary btn-refresh" type="button" aria-label="Refresh">
-        //             <span>Refresh</span>
-        //         </button>
-        //     </div>
-        // `;
-
-        // const refreshBtn = box.querySelector(".btn-refresh");
         refreshBtn.addEventListener("click", () => {
-            console.log("[Mana Donut Chart] Manual refresh");
+            console.log("Manual refresh");
             safeMain(deckId);
         })
 
         // Avoid duplicate insertion
         if (!container.querySelector('.chart-container')) {
-            console.debug("[Mana Donut Chart] Inserting HTML...")
+            console.debug("Inserting HTML...")
 
-            // // Locate only <hr> elements that are DIRECT children of the container
-            // const directHrs = Array.from(container.children).filter(
-            //     el => el.tagName === "HR"
-            // );
-
-            // const rows = Array.from(container.children).filter(
-            //     el => el.className === "row"
-            // );
             const rows = container.querySelectorAll(".row")
-            console.debug(`[Mana Donut Chart] Found ${rows.length} rows.`);
+            console.debug(`Found ${rows.length} rows.`);
             rows[1]?.before(row);
 
-            // if (directHrs.length >= 2) {
-            //     container.insertBefore(row, directHrs[0]);
-            //     // container.insertAfter(box, directHrs[0]);
-            // } else {
-            //     container.appendChild(row);
-            // }
-
-            console.debug("[Mana Donut Chart] HTML interted.")
+            console.debug("HTML interted.")
         }
         else {
-            console.debug("[Mana Donut Chart] HTML already inserted.")
+            console.debug("HTML already inserted.")
         }
 
         // Add CSS
