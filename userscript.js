@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      125
+// @version      126
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -233,8 +233,6 @@
         const redSymbols = countColors(cards, "{R}", redPattern)
         const greenSymbols = countColors(cards, "{G}", greenPattern)
         const colorlessSymbols = countColors(cards, "{C}", colorlessPattern)
-
-        const now = new Date();
 
         // Example: Insert a custom UI element
         const box = document.createElement("div");
