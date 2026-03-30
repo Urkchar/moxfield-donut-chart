@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      149
+// @version      152
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -219,33 +219,7 @@
         return [cardCosts, landMana]
     }
 
-    /************************************************************
-     * 2. MAIN SCRIPT LOGIC
-     ************************************************************/
-
-    async function main(deckId, { signal } = {}) {
-        if (deckId == "personal") return;
-        console.log("Starting for deck", deckId);
-
-        // Direct fetch with AbortController support
-        const urls = [
-            `https://api2.moxfield.com/v3/decks/all/${deckId}`,
-            `https://api2.moxfield.com/v3/decks/${deckId}`
-        ];
-        let deckData = null;
-        for (const url of urls) {
-            const res = await fetch(url, { credentials: 'include', signal }).catch(() => null);
-            if (res && res.ok) { deckData = await res.json(); break; }
-            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        }
-        if (!deckData) return; // could not load (private deck, offline, etc.)
-
-        // Build the cards map (guard for commanders not present)
-        const cards = {
-            ...(deckData?.boards?.mainboard?.cards || {}),
-            ...(deckData?.boards?.commanders?.cards || {})
-        };
-
+    async function insertHTML() {
         // Wait for the container
         const container = await waitForElement(".container.mt-3.mb-5")
             .catch(() => null);
@@ -255,14 +229,6 @@
         if (container.querySelector('.chart-container')) {
             container.querySelector('.chart-container').remove();
         }
-
-        // Count the symbols for each color
-        const whiteSymbols = countColors(cards, "{W}", whitePattern)
-        const blueSymbols = countColors(cards, "{U}", bluePattern)
-        const blackSymbols = countColors(cards, "{B}", blackPattern)
-        const redSymbols = countColors(cards, "{R}", redPattern)
-        const greenSymbols = countColors(cards, "{G}", greenPattern)
-        const colorlessSymbols = countColors(cards, "{C}", colorlessPattern)
 
         // Create elements
         const row = document.createElement("div")
@@ -344,6 +310,44 @@
                 margin: 1rem 0;
             }
         `);
+    }
+
+    /************************************************************
+     * 2. MAIN SCRIPT LOGIC
+     ************************************************************/
+
+    async function main(deckId, { signal } = {}) {
+        if (deckId == "personal") return;
+        console.log("Starting for deck", deckId);
+
+        // Direct fetch with AbortController support
+        const urls = [
+            `https://api2.moxfield.com/v3/decks/all/${deckId}`,
+            `https://api2.moxfield.com/v3/decks/${deckId}`
+        ];
+        let deckData = null;
+        for (const url of urls) {
+            const res = await fetch(url, { credentials: 'include', signal }).catch(() => null);
+            if (res && res.ok) { deckData = await res.json(); break; }
+            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        }
+        if (!deckData) return; // could not load (private deck, offline, etc.)
+
+        // Build the cards map (guard for commanders not present)
+        const cards = {
+            ...(deckData?.boards?.mainboard?.cards || {}),
+            ...(deckData?.boards?.commanders?.cards || {})
+        };
+
+        // Count the symbols for each color
+        const whiteSymbols = countColors(cards, "{W}", whitePattern)
+        const blueSymbols = countColors(cards, "{U}", bluePattern)
+        const blackSymbols = countColors(cards, "{B}", blackPattern)
+        const redSymbols = countColors(cards, "{R}", redPattern)
+        const greenSymbols = countColors(cards, "{G}", greenPattern)
+        const colorlessSymbols = countColors(cards, "{C}", colorlessPattern)
+
+        await insertHTML();
 
         // Load Chart.js
         await loadScript("https://cdn.jsdelivr.net/npm/chart.js");
