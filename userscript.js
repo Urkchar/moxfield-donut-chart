@@ -271,6 +271,7 @@
         btnWrapper.appendChild(refreshBtn)
         refreshBtn.appendChild(refreshBtnText)
 
+        // Rerun main when button is clicked
         refreshBtn.addEventListener("click", () => {
             console.log("Manual refresh");
             safeMain(deckId);
