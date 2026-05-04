@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      155
+// @version      185
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -13,7 +13,7 @@
 (function () {
     'use strict';
 
-    // Extend logging
+    // Extend logging by prepending the script name and log level to all console methods
     const originalError = console.error;
     console.error = (...args) => {
         originalError("[Mana Donut Chart] [ERROR]", ...args);
@@ -35,6 +35,8 @@
         originalDebug("[Mana Donut Chart] [DEBUG]", ...args);
     };
 
+    console.log("Script loaded on", location.href);
+
     // Create the regex for counting mana symbols in card text
     const whitePattern = /\b[Aa]dd\b[^.]*?\{W\}/g;
     const bluePattern = /\b[Aa]dd\b[^.]*?\{U\}/g;
@@ -51,71 +53,49 @@
     const GREEN = "#93b483";
     const COLORLESS = "#beb9b2";
 
-    let __lastRouteRan__ = null;
+    let __lastPage__ = null;
+    let __currentController__ = null;
 
-    // --- 0) Utility: deckId from URL ---
-    function getDeckIdFromPath(pathname = location.pathname) {
-        const m = pathname.match(/^\/decks\/([^\/?#]+)/);
-        return m ? m[1] : null;
-    }
-
-    // --- 1) Single, canonical route entry ---
-    function onRouteChange() {
-        const deckId = getDeckIdFromPath();
-        if (!deckId) {
-            __lastRouteRan__ = null;   // reset when leaving deck routes
-            return;
-        }
-
-        const routeKey = location.pathname;
-
-        if (__lastRouteRan__ === routeKey) return;
-        __lastRouteRan__ = routeKey;
-
-        safeMain(deckId);
-    }
-
-    // --- 2) Never bind `main` directly; use this wrapper ---
-    let __currentController = null;                       // for aborting in-flight fetches
-    async function safeMain(arg) {
-        // If `safeMain` is accidentally used as an event handler, fix it.
-        let deckId = (typeof arg === 'string') ? arg : getDeckIdFromPath();
-        if (typeof deckId !== 'string' || !deckId) return;  // abort: not a valid deck id
-
-        // Cancel any in-flight work for previous deck
-        if (__currentController) __currentController.abort();
-        __currentController = new AbortController();
-
-        try {
-            await main(deckId, { signal: __currentController.signal });
-        } catch (e) {
-            if (e?.name !== 'AbortError') console.warn('main failed:', e);
-        }
-    }
-
-    // --- 3) History/route hooks (SPA) ---
-    ['pushState', 'replaceState'].forEach(fn => {
-        const orig = history[fn];
-        history[fn] = function (...args) {
-            const ret = orig.apply(this, args);
-            // run after the history call settles
-            queueMicrotask(onRouteChange);
-            return ret;
-        };
-    });
-    window.addEventListener('popstate', onRouteChange);   // back/forward -> route handler
-
-    // --- 4) Boot once on initial load (no direct call to `main`) ---
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', onRouteChange, { once: true });
-    } else {
-        onRouteChange();
-    }
+    let pageContainer = ".container.mt-3.mb-5"
 
 
     /************************************************************
      * 1. UTILITIES
      ************************************************************/
+    function onNewPage() {
+        console.debug("Navigated to", location.pathname);
+        const deckId = getDeckIdFromPath();
+        if (!deckId) {
+            __lastPage__ = null;
+            // Abort any pending requests
+            if (__currentController__) {
+                __currentController__.abort();
+                __currentController__ = null;
+            }
+            return;
+        };
+
+        const pageKey = location.pathname;
+        if (__lastPage__ === pageKey) {
+            return;
+        }
+        // Abort the previous request before starting a new one
+        if (__currentController__) {
+            __currentController__.abort();
+        }
+        __lastPage__ = pageKey;
+
+        // Create a new AbortController for this page load
+        __currentController__ = new AbortController();
+        main(deckId, { signal: __currentController__.signal });
+    };
+
+
+    function getDeckIdFromPath(pathname = location.pathname) {
+        const m = pathname.match(/^\/decks\/([^\/?#]+)/);
+        return m ? m[1] : null;
+    };
+
 
     /**
      * Wait for an element to appear in the DOM (Promise-based)
@@ -135,14 +115,18 @@
                 }
             });
 
-            observer.observe(document.body, { childList: true, subtree: true });
+            observer.observe(
+                document.body,
+                { childList: true, subtree: true }
+            );
 
             setTimeout(() => {
                 observer.disconnect();
                 reject(new Error("Timeout: Element not found: " + selector));
             }, timeout);
         });
-    }
+    };
+
 
     /**
      * Dynamically load a script (e.g., Chart.js)
@@ -157,7 +141,8 @@
             script.onerror = reject;
             document.head.appendChild(script);
         });
-    }
+    };
+
 
     /**
      * Dynamically inject CSS styles
@@ -166,7 +151,8 @@
         const style = document.createElement("style");
         style.textContent = css;
         document.head.appendChild(style);
-    }
+    };
+
 
     /**
      * Count mana symbols of a card face
@@ -186,7 +172,8 @@
         }
 
         return [cardCost, landMana]
-    }
+    };
+
 
     /**
      * Count mana production and card costs for a given color
@@ -217,11 +204,12 @@
         }
 
         return [cardCosts, landMana]
-    }
+    };
+
 
     async function insertHTML() {
         // Wait for the container
-        const container = await waitForElement(".container.mt-3.mb-5")
+        const container = await waitForElement(pageContainer)
             .catch(() => null);
         if (!container) return;
 
@@ -313,28 +301,84 @@
                 margin: 1rem 0;
             }
         `);
-    }
+    };
+
 
     /************************************************************
      * 2. MAIN SCRIPT LOGIC
      ************************************************************/
-
     async function main(deckId, { signal } = {}) {
         if (deckId == "personal") return;
         console.log("Starting for deck", deckId);
 
-        // Direct fetch with AbortController support
+        /**
+         * Wait for the page container to load (indicates Moxfield has 
+         * initialized the page). This prevents API calls from
+         * interfering with Moxfield's own validation. For Packages, the
+         * page won't load and we'll timeout. For real Decks, the
+         * container will appear and we'll proceed
+         */
+        const pageIsLoading = new Promise((resolve) => {
+            const checkContainer = () => {
+                const container = document.querySelector(pageContainer);
+                if (container) {
+                    resolve(true);
+                }
+            };
+
+            // Check immediately
+            checkContainer();
+
+            // If not found, wait and check again
+            if (!document.querySelector(pageContainer)) {
+                setTimeout(checkContainer, 1000);
+            }
+        });
+
+        // Wait for page to load, with a timeout
+        const result = await Promise.race([
+            pageIsLoading,
+            new Promise(resolve => setTimeout(() => {
+                console.debug("Page load timeout - likely a Package or error");
+                resolve(false);
+            }, 1500))
+        ]);
+
+        if (!result) {
+            console.debug("Page did not load. Skipping...");
+            return;
+        }
+
         const urls = [
             `https://api2.moxfield.com/v3/decks/all/${deckId}`,
             `https://api2.moxfield.com/v3/decks/${deckId}`
         ];
         let deckData = null;
         for (const url of urls) {
-            const res = await fetch(url, { credentials: 'include', signal }).catch(() => null);
-            if (res && res.ok) { deckData = await res.json(); break; }
-            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        }
-        if (!deckData) return; // could not load (private deck, offline, etc.)
+            console.log("Fetching from", url);
+            const res = await fetch(
+                url,
+                { credentials: 'include', signal }
+            ).catch(() => null);
+            if (res && res.ok) {
+                deckData = await res.json();
+                console.log("Data fetched from", url);
+                break;
+            };
+        };
+
+        if (!deckData) {
+            // If the signal was aborted, the page navigated away
+            // (Moxfield detected a Package)
+            if (signal?.aborted) {
+                console.debug(
+                    "Page navigated (likely a Package, not a Deck).");
+                return;
+            }
+
+            console.error("Failed to fetch deck data from all endpoints.");
+            return;
+        };
 
         // Build the cards map (guard for commanders not present)
         const cards = {
@@ -356,7 +400,12 @@
         await loadScript("https://cdn.jsdelivr.net/npm/chart.js");
 
         // Draw the nested pie chart
-        const ctx = document.getElementById("myChart").getContext("2d");
+        const myChart = document.getElementById("myChart");
+        if (!myChart) {
+            console.error("Canvas element not found");
+            return;
+        };
+        const ctx = myChart.getContext("2d");
 
         const outerData = [
             whiteSymbols[0],
@@ -404,12 +453,46 @@
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                return `${context.parsed} symbols`
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0)
+                                const percentage = (context.parsed / total * 100).toFixed(0)
+                                console.debug(context)
+                                return `${context.parsed} symbols (${percentage}%)`
                             }
                         }
                     }
                 }
             }
         });
-    }
+    };
+
+    /**
+     * When pushState or replaceState is called, patch the original
+     * function with a wrapper that triggers onNewPage after the
+     * original function executes.
+     * pushState adds a new entry in the browser history, changes the
+     * URL, but does not reload the page.
+     * replaceState modifies the current history entry, changes the URL,
+     * but does not reload the page
+     */
+    ['pushState', 'replaceState'].forEach(func => {
+        const orig = history[func];
+        // Call the original function, store original return value,
+        // trigger onNewPage, return original return value
+        history[func] = function (...args) {
+            const originalReturnValue = orig.apply(this, args);
+            // run after the history call settles
+            queueMicrotask(onNewPage);
+            return originalReturnValue;
+        };
+    });
+    window.addEventListener("popstate", onNewPage);
+    if (document.readyState === "loading") {
+        document.addEventListener(
+            "DOMContentLoaded",
+            onNewPage,
+            { once: true }
+        );
+    } else {
+        onNewPage();
+    };
 })();
