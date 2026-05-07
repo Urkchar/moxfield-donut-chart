@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      185
+// @version      186
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -264,7 +264,7 @@
         // Rerun main when button is clicked
         refreshBtn.addEventListener("click", () => {
             console.log("Manual refresh");
-            safeMain(deckId);
+            main(deckId);
         })
 
         // Avoid duplicate insertion
