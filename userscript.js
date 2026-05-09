@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      186
+// @version      193
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -311,43 +311,8 @@
         if (deckId == "personal") return;
         console.log("Starting for deck", deckId);
 
-        /**
-         * Wait for the page container to load (indicates Moxfield has 
-         * initialized the page). This prevents API calls from
-         * interfering with Moxfield's own validation. For Packages, the
-         * page won't load and we'll timeout. For real Decks, the
-         * container will appear and we'll proceed
-         */
-        const pageIsLoading = new Promise((resolve) => {
-            const checkContainer = () => {
-                const container = document.querySelector(pageContainer);
-                if (container) {
-                    resolve(true);
-                }
-            };
-
-            // Check immediately
-            checkContainer();
-
-            // If not found, wait and check again
-            if (!document.querySelector(pageContainer)) {
-                setTimeout(checkContainer, 1000);
-            }
-        });
-
-        // Wait for page to load, with a timeout
-        const result = await Promise.race([
-            pageIsLoading,
-            new Promise(resolve => setTimeout(() => {
-                console.debug("Page load timeout - likely a Package or error");
-                resolve(false);
-            }, 1500))
-        ]);
-
-        if (!result) {
-            console.debug("Page did not load. Skipping...");
-            return;
-        }
+        // Sleep for 2 seconds to allow Moxfield to run its own scripts first.
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         const urls = [
             `https://api2.moxfield.com/v3/decks/all/${deckId}`,
@@ -359,7 +324,11 @@
             const res = await fetch(
                 url,
                 { credentials: 'include', signal }
-            ).catch(() => null);
+            ).catch(() => {
+                console.warn("Fetch failed for", url);
+                return null;
+            });
+
             if (res && res.ok) {
                 deckData = await res.json();
                 console.log("Data fetched from", url);
@@ -455,7 +424,6 @@
                             label: function (context) {
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0)
                                 const percentage = (context.parsed / total * 100).toFixed(0)
-                                console.debug(context)
                                 return `${context.parsed} symbols (${percentage}%)`
                             }
                         }
