@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mana Donut Chart
 // @namespace    http://tampermonkey.net/
-// @version      193
+// @version      196
 // @description  Insert a tappedout.net-style donut chart for mana production and usage.
 // @match        https://moxfield.com/*
 // @grant        none
@@ -232,7 +232,7 @@
 
         // Add text
         chartTitleText1.textContent = "Card costs (outer)"
-        chartTitleText2.textContent = "Land mana (inner"
+        chartTitleText2.textContent = "Land mana (inner)"
         refreshBtnText.textContent = "Refresh"
 
         // Add classes and attributes
